@@ -3,6 +3,8 @@ const {User,UserSchema} = require('./user');
 
 // participants will be same as attendance !!
 const eventSchema=new mongoose.Schema({
+    sessionId:String, // to identify the session !!
+    category:String,// category means like whether it is a legal camp or what !!
     participants:[UserSchema],
     feedback:[
         // which user and what feedback they have !!

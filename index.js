@@ -26,11 +26,12 @@ mongoose.connect(mongodb,(err)=>{
     }
 })
 
-
+// Step 1 : do basic setup of connecting with mongodb and all 
 // Step2 : create schemas !!
 // Step 3 : create routes for data collection 
-// Step 4 : create authentication facility 
-// Step 5 : integrate authentication with these routes !! 
+// Step 4 : create routes for data retrerival !!
+// Step 5 : create authentication facility 
+// Step 6 : integrate authentication with these routes !! 
 
 
 // Handling the cors error 
@@ -145,7 +146,8 @@ app.post("/user",authorize,(req,res)=>{
 app.post("/event",authorize,async (req,res)=>{
     let participants=req.body.participants;// array of userObjects !!
     let feedbacks=req.body.feedbacks// array of objects !!     
-    
+    let sessionId=req.body.sessionId;
+    let category=req.body.category;
     const attendance = [];
     const feedback=[];
   try {
@@ -174,6 +176,8 @@ app.post("/event",authorize,async (req,res)=>{
       );
 
     const currentEvent=new Event({
+        sessionId,
+        category,
         participants:attendance,
         feedback
     });
@@ -192,6 +196,245 @@ app.post("/event",authorize,async (req,res)=>{
 
 });
 
+
+// data retrival routes
+
+// getting attendance based on sessionId !!
+app.get("/event/attendance/:id",authorize,async (req,res)=>{
+    try{
+        let sessionId=req.params.id; // accessing the request parameters !! 
+        const result=await Event.find({sessionId:sessionId});
+        
+        if(result.length>0){
+            res.status(200).json({result:result[0].participants});
+        }
+        else if(result.length==0){
+            res.status(200).json({result:[]});
+        }
+        
+    }
+    catch(err){
+        res.status(500).json({message:err.message})
+    }
+})
+
+// get userList based on Community { For Community management tool }
+app.get("/user/:community",authorize,async (req,res)=>{
+    try{
+        
+        const community=req.params.community;
+        const result = await User.find({ 'basicDetails.Community': community});
+        if (result.length > 0) {
+            res.status(200).json({result:result});
+        }
+        else{
+            res.status(200).json({result:[]});
+        }
+
+    } 
+    catch(err){
+        res.status(500).json({message:err.message});
+    }
+});
+
+
+// get user feedbacks based on sessions 
+app.get("/events/feedbacks/:id",authorize,async (req,res)=>{
+    try{
+        const sessionId=req.params.id;
+
+        const result=await Event.find({sessionId:sessionId});
+        if(result.length>0){
+            res.status(200).json({result:result[0].feedback});
+        }
+        else{
+            res.status(200).json({result:[]});
+        }
+    }
+    catch(err){
+        res.status(500).json({message:err.message});
+    }
+
+})
+
+
+// Data visualization Routes : 
+
+
+// get users categorized by age { for data visualization }
+app.get("/users/age",authorize,async (req,res)=>{
+    try{
+        const users=await User.find();
+        if(users.length>0){
+            // console.log(users);
+            const result=processData(users);
+            res.status(200).json({result:result});
+            // using the result property of the json object returned we can 
+            // have that object send as prop to the component of chart.js 
+        }   
+        else{
+            res.status(200).json({result:{}});
+        }   
+    }
+    catch(err){
+        res.status(500).json({message:err.message});
+    }
+});
+
+const processData =(users) => {
+    const ageGroups = {};
+  
+    // Categorize users by age
+    users.forEach((user) => {
+      const age = user.basicDetails.Age;
+  
+      // Check if the age group exists, if not create it
+      if (!ageGroups[age]) {
+        ageGroups[age] = [];
+      }
+  
+      // Add the user to the respective age group
+      ageGroups[age].push(user);
+    });
+
+        // console.log(ageGroups);
+
+        return processDataForChart(ageGroups);
+};
+
+const processDataForChart = (ageGroups) => {
+    const labels = Object.keys(ageGroups);
+    const data = Object.values(ageGroups).map((usersArray) => usersArray.length);
+  
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'User Count',
+          data,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        },
+      ],
+    };
+};
+  
+
+
+// get number of benifitieries categorized by community !! { For data visualization } 
+app.get("/users/community",authorize,async (req,res)=>{
+    try{
+        const users=await User.find();
+        if(users.length>0){
+            // console.log(users);
+            const result=processData2(users);
+            res.status(200).json({result:result});
+            // using the result property of the json object returned we can 
+            // have that object send as prop to the component of chart.js 
+        }   
+        else{
+            res.status(200).json({result:{}});
+        }   
+    }
+    catch(err){
+        res.status(500).json({message:err.message});
+    }
+});
+
+const processData2 =(users) => {
+    const communityGroups = {};
+    
+    // Categorize users by age
+    users.forEach((user) => {
+      const community = user.basicDetails.Community;
+  
+      // Check if the age group exists, if not create it
+      if (!communityGroups[community]) {
+        communityGroups[community] = [];
+      }
+  
+      // Add the user to the respective age group
+      communityGroups[community].push(user);
+    });
+
+        // console.log(ageGroups);
+
+        return processDataForChart2(communityGroups);
+};
+
+const processDataForChart2 = (communityGroups) => {
+    const labels = Object.keys(communityGroups);
+    const data = Object.values(communityGroups).map((usersArray) => usersArray.length);
+  
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'User Count',
+          data,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        },
+      ],
+    };
+};
+
+
+
+// get users categorized by education levels { For data visualization }
+app.get("/users/education",authorize,async (req,res)=>{
+    try{
+        const users=await User.find();
+        if(users.length>0){
+            // console.log(users);
+            const result=processData3(users);
+            res.status(200).json({result:result});
+            // using the result property of the json object returned we can 
+            // have that object send as prop to the component of chart.js 
+        }   
+        else{
+            res.status(200).json({result:{}});
+        }   
+    }
+    catch(err){
+        res.status(500).json({message:err.message});
+    }
+});
+
+const processData3 =(users) => {
+    const educationGroups = {};
+    
+    // Categorize users by age
+    users.forEach((user) => {
+      const education = user.educationStatus.currentEducationLevel;
+  
+      // Check if the age group exists, if not create it
+      if (!educationGroups[education]) {
+        educationGroups[education] = [];
+      }
+  
+      // Add the user to the respective age group
+      educationGroups[education].push(user);
+    });
+
+        // console.log(ageGroups);
+
+        return processDataForChart3(educationGroups);
+};
+
+const processDataForChart3 = (educationGroups) => {
+    const labels = Object.keys(educationGroups);
+    const data = Object.values(educationGroups).map((usersArray) => usersArray.length);
+  
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'User Count',
+          data,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        },
+      ],
+    };
+};
 
 
 
